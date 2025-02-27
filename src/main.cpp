@@ -7,6 +7,7 @@ int counter = 0;
 
 void setup() {// the setup function runs once
  Serial.begin(115200);
+ Serial.println("setup");
  analogReadResolution(12); //default is 10
  analogWriteFreq(60000); //60KHz, about max
  analogWriteRange(DAC_RANGE_HIGH); //100% duty cycle
@@ -23,12 +24,16 @@ void loop() {// the loop function runs cyclically
  if (counter > DAC_RANGE_HIGH) // if counter saturates
  counter = 0; // reset counter
  //format that Serial Plotter likes
- Serial.print("DAC_LOW:");
- Serial.print(DAC_RANGE_LOW); Serial.print(" ");
- Serial.print("DAC_HIGH:");
- Serial.print(DAC_RANGE_HIGH); Serial.print(" ");
- Serial.print("LDR_READ:");
- Serial.print(read_adc); Serial.print(" ");
- Serial.print("Counter:");
- Serial.print(counter); Serial.println(); 
+ /* Serial.print(">DAC_LOW:");
+ Serial.print(DAC_RANGE_LOW);
+ Serial.print(" ");
+ Serial.print(">DAC_HIGH:");
+ Serial.print(DAC_RANGE_HIGH); */
+ //Serial.print(" "); 
+ Serial.print(">LDR_READ:");
+ Serial.print(read_adc); 
+ Serial.print("\n");
+Serial.print(">Counter:");
+ Serial.print(counter);
+ Serial.print("\n");
 }
