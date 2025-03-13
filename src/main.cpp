@@ -32,7 +32,10 @@ const int numSteps = 10; // Number of duty cycle steps for calibration
 float G;
 
 // LDR
-float ldr_lux = 0;
+union {
+    float value = 0;
+    uint8_t bytes[4]; // Float is 4 bytes
+} ldr_lux;
 
 // CAN
 uint8_t node_address; // short id
@@ -73,7 +76,7 @@ void setup() {
      adcSamples[i] = 0;
  }
 
- delay(3000); //Wait for monitor to open
+ delay(1000); //Wait for monitor to open before completing setup
 
  // Start-up calibration
  get_ldr_param(); //This is redundant
@@ -81,10 +84,9 @@ void setup() {
 
 }
 
-void loop()
-{ // the loop function runs cyclically
+void loop(){ 
     
-    int read_adc;
+    int read_adc;                      
     if (Serial.available() > 0)
     {
         cmd_led_power();
@@ -93,33 +95,44 @@ void loop()
     analogWrite(LED_PIN, dutyCycle); // Actuate LED (PWM)
     delay(1);                        // Small delay to prevent excessive CPU usage
 
-    //ldr_lux = get_ldr_data();
+    ldr_lux.value = get_ldr_data();
+
+    //CAN TX and RX
+    union {
+        float value;        // To interpret the 4 bytes as a float
+        byte data[4];   // To store 4 bytes of data
+    } ldr_lux_rx;
 
     unsigned long current_time = millis();
     if( current_time >= time_to_write ) {
         canMsgTx.can_id = node_address;
-        canMsgTx.can_dlc = 8;
+        canMsgTx.can_dlc = sizeof(ldr_lux); //How many data bytes to send?
         unsigned long div = counter;
         for(int i = 0; i < canMsgTx.can_dlc; i++ ) {
-            canMsgTx.data[i] = '0'+(int)(div%10);
-            div = div/10;
+            canMsgTx.data[i] = ldr_lux.bytes[i];    
         }
         err = can0.sendMessage(&canMsgTx);
-        snprintf(printbuf, BUFSZ,"Sending message %ld from node %x\n",
-            counter++, node_address);
-        Serial.print(printbuf);
+        snprintf(printbuf, BUFSZ,"#%d TXmessage: %ld lux: %f", easy_id,
+            counter++, ldr_lux.value);
+        Serial.println(printbuf);
         time_to_write = current_time+write_delay;
 
     }
     while ( (err = can0.readMessage( &canMsgRx )) == MCP2515::ERROR_OK ) {
         unsigned long rx_msg = 0;
         unsigned long mult = 1;
+        // Assuming that the first 4 bytes of the message are the float
+        for (int i = 0; i < 4; i++) {
+            ldr_lux_rx.data[i] = canMsgRx.data[i];  // Copy the bytes into the union
+        }
+        /*
         for(int i=0 ; i < canMsgRx.can_dlc ; i++) {
             rx_msg += mult*(canMsgRx.data[i]-'0');mult = mult*10;
         }
-        snprintf(printbuf, BUFSZ,"\t\t\t\tReceived message %ld from node %x\n",
-            rx_msg, (int)canMsgRx.can_id);
-        Serial.print(printbuf);
+        */
+        snprintf(printbuf, BUFSZ,"#%d RXmessage %ld lux: %f\n", easy_id,
+            rx_msg, ldr_lux_rx.value);
+        Serial.println(printbuf);
     }
     if( err == MCP2515::ERROR_FAIL){
         Serial.println("Error");

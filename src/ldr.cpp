@@ -145,6 +145,7 @@ float get_ldr_data() {
     float LUX = pow(10, (log10(R_LDR) - b) / m);    // Calculate LUX using logarithmic model
 
     // Print to terminal (formatted for teleplot)
+    /*
     Serial.print(">ADC_READ:");
     Serial.print(filtered_adc);
     Serial.print("\n");
@@ -157,7 +158,7 @@ float get_ldr_data() {
     Serial.print(">LUX:");
     Serial.print(LUX);
     Serial.print("\n");
-
+    */
     return LUX;
 }
 
