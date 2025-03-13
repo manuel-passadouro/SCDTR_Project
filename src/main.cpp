@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "mcp2515.h"
 #include "ldr.h"
 #include "led.h"
 
