@@ -1,9 +1,7 @@
 #include "ldr.h"
 
 // External variables (defined in main)
-extern int easy_id;
-extern float m;
-extern float b;
+extern std::vector<NodeData> nodes;
 extern int dutyCycle;
 extern int adcSamples[];
 extern int sampleIndex;
@@ -42,7 +40,7 @@ void get_samples(float* V_LED, float* LUX) {
 
         float V = (filtered_adc / 4095.0) * VCC; // Calculate the ADC input voltage
         float R_LDR = R * ((VCC - V) / V); // Calculate the LDR resistance 
-        float LUX_samp = pow(10, (log10(R_LDR) - b) / m); // Calculate LUX using the logarithmic model
+        float LUX_samp = pow(10, (log10(R_LDR) - nodes[0].b.value) / nodes[0].m.value); // Calculate LUX using the logarithmic model
         
         Serial.print("Duty Cycle: ");
         Serial.print(dutyCycle);
@@ -59,9 +57,34 @@ void get_samples(float* V_LED, float* LUX) {
     }
 }
 
-float calibrate_gain() {
-    float* V_LED = new float[numSteps + 1]; // Dynamically allocate memory
-    float* LUX = new float[numSteps + 1];  // Dynamically allocate memory
+void calibrate_gain(pico_unique_board_id_t* pico_board_id) {
+    float* V_LED = new float[numSteps + 1]; 
+    float* LUX = new float[numSteps + 1];
+
+    // Convert the chip ID to a string
+    char chipID[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];       // Hex string buffer
+    for (int i = 0; i < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; i++)
+    {
+        sprintf(&chipID[i * 2], "%02X", nodes[0].board_id);
+    }
+
+    // Switch case using chip ID string
+    if (strcmp(chipID, "E66118604B1F4021") == 0)        // Luminarie 1
+    { 
+        nodes[0].node_id = 1;
+        nodes[0].m.value = -0.95;
+        nodes[0].b.value = 6.2;
+    }
+    else if (strcmp(chipID, "E660C0D1C71DA034") == 0)   // Luminarie 2
+    { 
+        nodes[0].node_id = 2;
+        nodes[0].m.value = -0.93;
+        nodes[0].b.value = 6.15;
+    }
+    else
+    {
+        // Default to nominal values (defined in main)
+    }
 
     // Get the samples of V_LED and LUX
     get_samples(V_LED, LUX);
@@ -90,51 +113,8 @@ float calibrate_gain() {
     // Free allocated memory
     delete[] V_LED;
     delete[] LUX;
-
-    return slope;
 }
 
-void get_ldr_param(){
-    
-    // Get RP2040 Unique Chip ID
-    pico_unique_board_id_t id;
-    pico_get_unique_board_id(&id);
-
-    // Convert the chip ID to a string
-    char chipID[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];       // Hex string buffer
-    for (int i = 0; i < PICO_UNIQUE_BOARD_ID_SIZE_BYTES; i++)
-    {
-        sprintf(&chipID[i * 2], "%02X", id.id[i]);
-    }
-
-    // Switch case using chip ID string
-    if (strcmp(chipID, "E66118604B1F4021") == 0)        // Luminarie 1
-    { 
-        easy_id = 1;
-        m = -0.95;
-        b = 6.2;
-    }
-    else if (strcmp(chipID, "E660C0D1C71DA034") == 0)   // Luminarie 2
-    { 
-        easy_id = 2;
-        m = -0.93;
-        b = 6.15;
-    }
-    else
-    {
-        // Default to nominal values (defined in main)
-    }
-
-    Serial.print("Luminary: "); 
-    Serial.print(easy_id);
-    Serial.print(" (RP2040 Chip ID: ");
-    Serial.print(chipID);
-    Serial.println(")");
-    Serial.print("Using m = "); 
-    Serial.println(m, 5);
-    Serial.print("Using b = "); 
-    Serial.println(b, 5);
-}
 
 float get_ldr_data() {
     int read_adc = analogRead(A0);                  // Read analog voltage
@@ -142,7 +122,7 @@ float get_ldr_data() {
     
     float V = (filtered_adc / 4095.0) * VCC;        // Calculate ADC input voltage
     float R_LDR = R * ((VCC - V) / V);              // Calculate LDR resistance
-    float LUX = pow(10, (log10(R_LDR) - b) / m);    // Calculate LUX using logarithmic model
+    float LUX = pow(10, (log10(R_LDR) - nodes[0].b.value) / nodes[0].m.value);    // Calculate LUX using logarithmic model
 
     // Print to terminal (formatted for teleplot)
     /*

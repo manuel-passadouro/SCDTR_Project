@@ -2,6 +2,7 @@
 #define LDR_H
 
 #include <Arduino.h> 
+#include "data.h"
 
 // Constants (Defined in main)
 extern const int LED_PIN;
@@ -14,8 +15,7 @@ extern const int numSteps;
 
 // Prototypes
 int getFilteredADC(int newSample);
-void get_ldr_param();
-float calibrate_gain();
+void calibrate_gain();
 float get_ldr_data();
 
 #endif // LDR_H

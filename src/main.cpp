@@ -1,15 +1,17 @@
 #include <Arduino.h>
 #include "mcp2515.h"
+#include "communication.h"
 #include "ldr.h"
 #include "led.h"
+#include "data.h"
 
 // Circuit Parameters
 const float VCC = 3.3; // Rpi Pico Supply voltage
 const int R = 10000; // Voltage Divider Resistor (10kΩ)
 
 // Luminarie ID
-int chip_id = 0;
-int easy_id = 0;
+//int chip_id = 0;
+int node_id = 0;
 pico_unique_board_id_t pico_board_id; // full id
 
 
@@ -25,17 +27,13 @@ int adcSamples[numSamples]; // Array to store ADC readings
 int sampleIndex = 0;        // Index for storing new samples
 long sum = 0;               // Sum of samples for averaging
 
+//Node data structure
+std::vector<NodeData> nodes;
+
 // Calibration
-float m = -0.8;  // LDR Datasheet Parameters (Nominal)
-float b = 6.15; 
 const int numSteps = 10; // Number of duty cycle steps for calibration
 float G;
 
-// LDR
-union {
-    float value = 0;
-    uint8_t bytes[4]; // Float is 4 bytes
-} ldr_lux;
 
 // CAN
 uint8_t node_address; // short id
@@ -49,39 +47,52 @@ const int BUFSZ = 100;
 char printbuf[BUFSZ];
 MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
 
+void node_setup(){
+    
+    NodeData local_node = {
+        .node_id = 0,                      
+        .board_id = {0},                   // board_id, initialize to 0
+        .m = { .value = -0.8f },           // m union, initializing the value
+        .b = { .value = 6.15f },           // b union, initializing the value
+        .ldr_lux = { .value = 0.0f },      // ldr_lux union, initializing the value
+        .G = { .value = 0.0f },            // G union, initializing the value
+        .desk_state = false                // desk_state
+    };
+
+    nodes.push_back(local_node);  // Add the first node to the vector
+    pico_get_unique_board_id(&nodes[0].board_id);
+    calibrate_gain();
+
+}
 
 
 void setup() {
- // Serial setup
- Serial.begin(115200);
- Serial.println("setup");
+    // Serial setup
+    Serial.begin(115200);
+    Serial.println("setup");
 
- // DAC/ADC setup
- analogReadResolution(12); //default is 10
- analogWriteFreq(10000); //Does not allow less than 100Hz
- analogWriteRange(DAC_RANGE_HIGH); //100% duty cycle
 
- // CAN setup
- pico_get_unique_board_id(&pico_board_id);
- node_address = pico_board_id.id[7]; // check
- can0.reset();
- can0.setBitrate(CAN_1000KBPS);
- can0.setNormalMode(); // setLoopbackMode()debug
- unsigned long current_time = millis();
- time_to_write = current_time + write_delay;
+    // DAC/ADC setup
+    analogReadResolution(12);         // default is 10
+    analogWriteFreq(10000);           // Does not allow less than 100Hz
+    analogWriteRange(DAC_RANGE_HIGH); // 100% duty cycle
 
- // Initialize sample array with zeros
- for (int i = 0; i < numSamples; i++)
- {
-     adcSamples[i] = 0;
- }
+    // Node Setup
+               
+    // CAN setup
+    can_setup(&pico_board_id);
 
- delay(1000); //Wait for monitor to open before completing setup
+    // Initialize sample array with zeros
+    for (int i = 0; i < numSamples; i++)
+    {
+        adcSamples[i] = 0;
+    }
 
- // Start-up calibration
- get_ldr_param(); //This is redundant
- //G = calibrate_gain(); //TODO: get m and b here
+        delay(1000); // Wait for monitor to open before completing setup
 
+        // Start-up calibration
+        //get_ldr_param(); // This is redundant
+        //G = calibrate_gain(); //TODO: get m and b here
 }
 
 void loop(){ 
@@ -95,7 +106,7 @@ void loop(){
     analogWrite(LED_PIN, dutyCycle); // Actuate LED (PWM)
     delay(1);                        // Small delay to prevent excessive CPU usage
 
-    ldr_lux.value = get_ldr_data();
+    nodes[0].ldr_lux.value = get_ldr_data();
 
     //CAN TX and RX
     union {
@@ -106,14 +117,14 @@ void loop(){
     unsigned long current_time = millis();
     if( current_time >= time_to_write ) {
         canMsgTx.can_id = node_address;
-        canMsgTx.can_dlc = sizeof(ldr_lux); //How many data bytes to send?
+        canMsgTx.can_dlc = sizeof(nodes[0].ldr_lux.value); //How many data bytes to send?
         unsigned long div = counter;
         for(int i = 0; i < canMsgTx.can_dlc; i++ ) {
-            canMsgTx.data[i] = ldr_lux.bytes[i];    
+            canMsgTx.data[i] = nodes[0].ldr_lux.bytes[i];    
         }
         err = can0.sendMessage(&canMsgTx);
-        snprintf(printbuf, BUFSZ,"#%d TXmessage: %ld lux: %f", easy_id,
-            counter++, ldr_lux.value);
+        snprintf(printbuf, BUFSZ,"#%d TXmessage: %ld lux: %f", nodes[0].node_id,
+            counter++, nodes[0].ldr_lux.value);
         Serial.println(printbuf);
         time_to_write = current_time+write_delay;
 
@@ -130,7 +141,7 @@ void loop(){
             rx_msg += mult*(canMsgRx.data[i]-'0');mult = mult*10;
         }
         */
-        snprintf(printbuf, BUFSZ,"#%d RXmessage %ld lux: %f\n", easy_id,
+        snprintf(printbuf, BUFSZ,"#%d RXmessage %ld lux: %f\n", nodes[0].node_id,
             rx_msg, ldr_lux_rx.value);
         Serial.println(printbuf);
     }
