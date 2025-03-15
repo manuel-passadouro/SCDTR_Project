@@ -57,7 +57,7 @@ void get_samples(float* V_LED, float* LUX) {
     }
 }
 
-void calibrate_gain(pico_unique_board_id_t* pico_board_id) {
+void calibrate_gain() {
     float* V_LED = new float[numSteps + 1]; 
     float* LUX = new float[numSteps + 1];
 
@@ -103,13 +103,8 @@ void calibrate_gain(pico_unique_board_id_t* pico_board_id) {
     slope /= (numSteps + 1) * sumX2 - sumX * sumX;
     float intercept = (sumY - slope * sumX) / (numSteps + 1);
 
-    // Print the linear regression results
-    Serial.print("Calibration Complete\n");
-    Serial.print("Slope (G): ");
-    Serial.println(slope, 5);
-    Serial.print("Intercept: ");
-    Serial.println(intercept, 5);
-
+    nodes[0].G.value = slope;
+    
     // Free allocated memory
     delete[] V_LED;
     delete[] LUX;

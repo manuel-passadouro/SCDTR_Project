@@ -1,7 +1,5 @@
 #include "led.h"
 
-extern int dutyCycle; // Default duty cycle (Defined in main)
-
 /*
  * Function: cmd_led_power
  * ------------------------

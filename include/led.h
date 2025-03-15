@@ -7,6 +7,7 @@
 extern const int LED_PIN;
 extern const int DAC_RANGE_LOW;
 extern const int DAC_RANGE_HIGH;
+extern int dutyCycle;
 
 void cmd_led_power();
 
