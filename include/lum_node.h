@@ -40,7 +40,6 @@ typedef struct {                          // Structure for node data
     FloatUnion ldr_resistance;            // Calculated LDR resistance
     FloatUnion reference;                 // Reference value for control
     unsigned long timestamp;              // Time of last update
-    unsigned long time_elapsed;           // Time since boot
     bool stream_u;                        // Stream duty cycle flag
     bool stream_y;                        // Stream lux flag
 } NodeData;
@@ -59,13 +58,18 @@ class Node {
             node_data.ldr_m.value = -0.8f;
             node_data.ldr_b.value = 6.15f;
             node_data.ldr_lux.value = 0.0f;
-            node_data.G.value = 0.0f;
+            node_data.G.value = 8.0f;
             node_data.desk_state = false;
             node_data.raw_adc = 0;
             node_data.filtered_adc = 0;
             node_data.duty_cycle = 0;
             node_data.c_voltage.value = 0.0f;
             node_data.ldr_resistance.value = 0.0f;
+            node_data.reference.value = 0.0f;
+            node_data.timestamp = 0;
+            node_data.stream_u = false;
+            node_data.stream_y = false;
+
         }
     
         //Menber Functions
@@ -93,8 +97,8 @@ class Node {
         void update_led() {
             if (node_data.duty_cycle >= 0 && node_data.duty_cycle <= DAC_RANGE_HIGH){
                 analogWrite(LED_PIN, node_data.duty_cycle);
-                Serial.print("New duty cycle set: ");
-                Serial.println(node_data.duty_cycle);
+                //Serial.print("New duty cycle set: ");
+                //Serial.println(node_data.duty_cycle);
             }
             else{
                 Serial.println("Invalid value. Duty Cycle must be between 0 and 4095.");
@@ -142,8 +146,8 @@ class Node {
             return node_data.stream_y;
         }
 
-        unsigned long get_time_elapsed() const {
-            return node_data.time_elapsed;
+        unsigned long get_timestamp() const {
+            return node_data.timestamp;
         }
 
         pico_unique_board_id_t get_board_id() const {
@@ -175,8 +179,8 @@ class Node {
             node_data.stream_y = state;
         }
 
-        void set_elapsed_time(unsigned long time) {
-            node_data.time_elapsed = time;
+        void set_timestamp(unsigned long time) {
+            node_data.timestamp = time;
         }
 
     };
@@ -204,16 +208,14 @@ class DataBuffer {
     
         // Add new data to the buffer         
         void add_data(NodeData new_data) {
-            unsigned long current_time = millis();
-                        
+                                    
             // Add the new data point to the buffer
             data_buffer[buffer_head] = new_data;
-            data_buffer[buffer_head].timestamp = current_time;
             buffer_head = (buffer_head + 1) % buffer_size;      // Circular buffer
 
-            // If the buffer is full, move the start index
+            // Track buffer tail, for printing in order
             if (buffer_head == buffer_tail) {
-                buffer_tail = (buffer_tail + 1) % buffer_size; // Overwrite the oldest data
+                buffer_tail = (buffer_tail + 1) % buffer_size;  // Overwrite the oldest data
             }  
         }       
           
@@ -274,6 +276,19 @@ class DataBuffer {
                 Serial.print(data_buffer[index].timestamp);
                 Serial.print(" | LDR Resistance: ");
                 Serial.println(data_buffer[index].ldr_resistance.value);
+            }
+        }
+
+        void print_all() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Duty_Cycle: ");
+                Serial.println(data_buffer[index].duty_cycle);
+                Serial.print(" | LDR_LUX: ");
+                Serial.println(data_buffer[index].ldr_lux.value);
+                Serial.print(" | Ref: ");
+                Serial.println(data_buffer[index].reference.value);
             }
         }
 };

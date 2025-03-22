@@ -3,11 +3,14 @@
 void can_setup(pico_unique_board_id_t board_id) {
     // Set node address from the unique Pico ID
     node_address = board_id.id[7];
-
+    Serial.println("INSIDE CAN SETUP");
     // Initialize CAN
     can0.reset();
+    Serial.println("CAN 1");
     can0.setBitrate(CAN_1000KBPS);
+    Serial.println("CAN 2");
     can0.setNormalMode(); // Use setLoopbackMode() for debugging if needed
+    Serial.println("CAN 3");
 
 }
 

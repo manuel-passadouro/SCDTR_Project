@@ -67,40 +67,46 @@ void Node::calibrate_gain(int numSteps) {
         node_data.node_id = 1;
         node_data.ldr_m.value = -0.95f;
         node_data.ldr_b.value = 6.2f;
+        node_data.G.value = 8.0f; // Default G if not calibration is run
     } 
     else if (strcmp(chipID, "E660C0D1C71DA034") == 0) {  
         node_data.node_id = 2;
         node_data.ldr_m.value = -0.93f;
         node_data.ldr_b.value = 6.15f;
+        node_data.G.value = 6.5f; // Default G if not calibration is run
     } 
     else {
         Serial.println("Unknown board ID. Using default calibration values.");
     }
 
-    // Get samples
-    get_samples(V_LED, LUX);
+    // Debug Toggle for calibration
+    if(0){
+        
+        get_samples(V_LED, LUX);
 
-    // Perform Linear Regression to compute slope and intercept
-    float sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-    for (int i = 0; i <= numSteps; i++) {
-        sumX += V_LED[i];
-        sumY += LUX[i];
-        sumXY += V_LED[i] * LUX[i];
-        sumX2 += V_LED[i] * V_LED[i];
+        // Perform Linear Regression to compute slope and intercept
+        float sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (int i = 0; i <= numSteps; i++) {
+            sumX += V_LED[i];
+            sumY += LUX[i];
+            sumXY += V_LED[i] * LUX[i];
+            sumX2 += V_LED[i] * V_LED[i];
+        }
+
+        // Compute slope and intercept using the least squares method
+        float slope = ((numSteps + 1) * sumXY - sumX * sumY) /
+                    ((numSteps + 1) * sumX2 - sumX * sumX);
+        float intercept = (sumY - slope * sumX) / (numSteps + 1);
+
+        node_data.G.value = slope;
+
+        // Free allocated memory
+        delete[] V_LED;
+        delete[] LUX;
+
+        Serial.println("Calibration complete.");
+        Serial.println();
     }
-
-    // Compute slope and intercept using the least squares method
-    float slope = ((numSteps + 1) * sumXY - sumX * sumY) /
-                   ((numSteps + 1) * sumX2 - sumX * sumX);
-    float intercept = (sumY - slope * sumX) / (numSteps + 1);
-
-    node_data.G.value = slope;
-
-    // Free allocated memory
-    delete[] V_LED;
-    delete[] LUX;
-
-    Serial.println("Calibration complete. Slope (G): " + String(node_data.G.value, 5));
 }
 
 void Node::print_setup_data() const {
@@ -122,7 +128,6 @@ void Node::print_setup_data() const {
     Serial.println(node_data.ldr_m.value, 5);
     Serial.print("LDR Intercept (b): ");
     Serial.println(node_data.ldr_b.value, 5);
-    Serial.println("Calibration Complete");
     Serial.print("Slope (G): ");
     Serial.println(node_data.G.value, 5);
 
@@ -161,7 +166,7 @@ void Node::update_ldr_data() {
     // Compute the total and external illuminance
     node_data.ldr_lux.value = pow(10, (log10(R_LDR) - node_data.ldr_b.value) / node_data.ldr_m.value);
 
-    node_data.ldr_lux_extern.value = node_data.ldr_lux.value - (node_data.G.value * node_data.duty_cycle);
+    node_data.ldr_lux_extern.value = node_data.ldr_lux.value - (node_data.G.value * (float)(node_data.duty_cycle/ 4096.0));
 
     // Optional: Print for debugging
     /*
@@ -180,17 +185,17 @@ void Node::update_ldr_data() {
 void Node::set_controller_params() {
     switch (node_data.node_id) {
         case 1: // For node 1
-            controller.set_K(2.0f);
-            controller.set_h(0.3f);
-            controller.set_b(6.2f);
-            controller.set_Ti(1.5f);
+            controller.set_K(1.0f);
+            controller.set_h(0.01f);
+            controller.set_b(1.0f);
+            controller.set_Ti(0.05f);
             break;
 
         case 2: // For node 2
-            controller.set_K(2.0f);
-            controller.set_h(0.3f);
-            controller.set_b(6.2f);
-            controller.set_Ti(1.5f);
+            controller.set_K(1.0f);
+            controller.set_h(0.01f);
+            controller.set_b(1.0f);
+            controller.set_Ti(0.03f);
             break;
 
         default:

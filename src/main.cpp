@@ -15,7 +15,7 @@ const int DAC_RANGE_LOW = 0;
 const int DAC_RANGE_HIGH = 4096;
 
 //ADC Filter
-const int NUM_SAMPLES = 100;         // Number of samples for averaging
+const int NUM_SAMPLES = 50;         // Number of samples for averaging
 int adc_samples[NUM_SAMPLES] = {0};  // Array to store ADC readings
 int sample_index = 0;                // Index for storing new samples
 long sum = 0;                        // Sum of samples for averaging
@@ -34,7 +34,7 @@ unsigned long counter{0};
 MCP2515::ERROR err;
 int unsigned long time_to_write;
 //unsigned long write_delay{1000};
-const int CAN_PERIOD = 1000;         // CAN TX period in ms (1Hz)
+const int CAN_PERIOD = 100;         // CAN TX period in ms (10Hz)
 const int BUFSZ = 100;
 char printbuf[BUFSZ];
 MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
@@ -48,6 +48,7 @@ DataBuffer data_buffer(600); //New addition every 10 ms
 void setup() {
     // Serial setup
     Serial.begin(115200);
+    delay(1000);                        // Wait for monitor to open before continuing setup
     Serial.println("setup");
 
     // DAC/ADC setup
@@ -61,18 +62,19 @@ void setup() {
     nodes[0].set_controller_params();
     nodes[0].print_setup_data();
 
-    control_timer_setup();              // Setup the control timer
     can_setup(nodes[0].get_board_id()); // Setup the CAN bus
-    delay(1000);                        // Wait for monitor to open before completing setup
-   
+
+    control_timer_setup();              // Setup the control timer
+    can_timer_setup();                  // Setup the CAN timer
+         
+    Serial.print("CAN SETUP COMPLETE");
+    
 }
 
 void loop(){ 
     
-    nodes[0].set_elapsed_time(millis()); // Set the elapsed time since boot (ms)
-
-    float r = 1000; // Reference for the controller
-
+    //Serial.print("MAIN");
+        
     // Check for serial input
     if(Serial.available()){    
         handle_serial_commands();
@@ -94,13 +96,15 @@ void loop(){
     }
 
     // Read the LDR data
-    nodes[0].update_ldr_data();
+    //nodes[0].update_ldr_data();
     
     //Control
     if (control_timer_flag) {
         control_timer_flag = false;
         // Enable/Disable control
-        nodes[0].update_control(r,nodes[0].get_ldr_lux());
+        nodes[0].set_timestamp(millis());
+        nodes[0].update_ldr_data();
+        nodes[0].update_control(nodes[0].get_reference(),nodes[0].get_ldr_lux());
         nodes[0].update_led();
 
         // Update last minute buffer
@@ -109,7 +113,26 @@ void loop(){
         
     // CAN                
     if(can_timer_flag) {
-        CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());   
+        can_timer_flag = false;
+        //CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());
+        //Serial.print("Node ");
+        //Serial.print(nodes[0].get_node_id());
+
+        Serial.print(">Time:");
+        Serial.print(millis());
+        Serial.print("\n");
+        
+        Serial.print(">Duty_Cycle:");
+        Serial.print(nodes[0].get_led_duty_cycle());
+        Serial.print("\n");
+
+        Serial.print(">LDR_Lux:");
+        Serial.print(nodes[0].get_ldr_lux());
+        Serial.print("\n");
+
+        Serial.print(">Ref:");
+        Serial.print(nodes[0].get_reference());
+        Serial.print("\n");
     }
 
     // Do this with ISR and flag 

@@ -22,9 +22,9 @@ class pid{
 };
 
 inline void pid::housekeep(float r, float y){
-    float e = r - y;
-    I += K * h / Ti * e;
-    y_old = y;
+    float e = r - y;        // Compute Error
+    I += K * h / Ti * e;    // Integral term (h is the sampling time)
+    //y_old = y;              // Update y_old Por Differential term computation (not used)
 }
 
 #endif // CONTROL_H

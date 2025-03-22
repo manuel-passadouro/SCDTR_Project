@@ -1,5 +1,8 @@
 #include "node_timers.h"
 
+repeating_timer_t control_timer;
+repeating_timer_t can_timer;
+
 volatile bool control_timer_flag = false;
 volatile bool can_timer_flag = false;
 
@@ -18,13 +21,11 @@ bool can_timer_callback(repeating_timer_t *rt) {
 }
 
 void control_timer_setup() {
-    repeating_timer_t timer;
     
-    add_repeating_timer_ms(CONTROL_PERIOD, control_timer_callback, NULL, &timer);
+    add_repeating_timer_ms(CONTROL_PERIOD, control_timer_callback, NULL, &control_timer);
 }
 
 void can_timer_setup() {
-    repeating_timer_t timer;
     
-    add_repeating_timer_ms(CAN_PERIOD, can_timer_callback, NULL, &timer);
+    add_repeating_timer_ms(CAN_PERIOD, can_timer_callback, NULL, &can_timer);
 }
