@@ -2,7 +2,6 @@
 
 void can_setup(pico_unique_board_id_t board_id) {
     // Set node address from the unique Pico ID
-    //node_address = pico_board_id->id[7]; // Assign last byte of ID
     node_address = board_id.id[7];
 
     // Initialize CAN
@@ -10,9 +9,6 @@ void can_setup(pico_unique_board_id_t board_id) {
     can0.setBitrate(CAN_1000KBPS);
     can0.setNormalMode(); // Use setLoopbackMode() for debugging if needed
 
-    // Initialize timing for message transmission
-    unsigned long current_time = millis();
-    time_to_write = current_time + write_delay;
 }
 
 void CAN_send(unsigned long current_time, int node_id, float data_to_send) {
@@ -34,8 +30,7 @@ void CAN_send(unsigned long current_time, int node_id, float data_to_send) {
 
     snprintf(printbuf, BUFSZ, "#%d TXmessage: %ld lux: %f", node_id, counter++, data_to_send);
     Serial.println(printbuf);
-
-    time_to_write = current_time + write_delay; // Update the next write time
+    
 }
 
 void CAN_receive(int node_id) {

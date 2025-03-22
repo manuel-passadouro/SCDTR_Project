@@ -2,6 +2,7 @@
 #include "mcp2515.h"
 #include "communication.h"
 #include "lum_node.h"
+#include "node_timers.h"
 
 // Circuit Parameters
 const float VCC = 3.3;              // Rpi Pico Supply voltage
@@ -14,21 +15,25 @@ const int DAC_RANGE_HIGH = 4096;
 
 //ADC Filter
 const int NUM_SAMPLES = 100;         // Number of samples for averaging
-int adc_samples[NUM_SAMPLES] = {0};   // Array to store ADC readings
+int adc_samples[NUM_SAMPLES] = {0};  // Array to store ADC readings
 int sample_index = 0;                // Index for storing new samples
-long sum = 0;                       // Sum of samples for averaging
+long sum = 0;                        // Sum of samples for averaging
 
 // Calibration
-const int CAL_SAMPLES = 500;            // Number of duty cycle steps for calibration
+const int CAL_SAMPLES = 500;         // Number of duty cycle steps for calibration
 const int CAL_STEPS = 10;            // Number of duty cycle steps for calibration
 
+// Control
+const int CONTROL_PERIOD = 10;       // Control period in ms (100Hz)
+
 // CAN
-uint8_t node_address;                   // short id
+uint8_t node_address;                // short id
 struct can_frame canMsgTx, canMsgRx;
 unsigned long counter{0};
 MCP2515::ERROR err;
 int unsigned long time_to_write;
-unsigned long write_delay{1000};
+//unsigned long write_delay{1000};
+const int CAN_PERIOD = 1000;         // CAN TX period in ms (1Hz)
 const int BUFSZ = 100;
 char printbuf[BUFSZ];
 MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
@@ -36,45 +41,62 @@ MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
 //Luminary Node Vector
 std::vector<Node> nodes;
 
+// Last miunute data buffer
+DataBuffer data_buffer(600); //New addition every 10 ms
+
 void setup() {
     // Serial setup
     Serial.begin(115200);
     Serial.println("setup");
 
     // DAC/ADC setup
-    analogReadResolution(12);         // default is 10
-    analogWriteFreq(10000);           // Does not allow less than 100Hz
-    analogWriteRange(DAC_RANGE_HIGH); // 100% duty cycle
+    analogReadResolution(12);           // default is 10
+    analogWriteFreq(10000);             // Does not allow less than 100Hz
+    analogWriteRange(DAC_RANGE_HIGH);   // 100% duty cycle
 
-    nodes.emplace_back();             // Create new node
+    nodes.emplace_back();               // Create new node
     nodes[0].get_pico_id();
     nodes[0].calibrate_gain(CAL_STEPS);
     nodes[0].set_controller_params();
     nodes[0].print_setup_data();
 
-    can_setup(nodes[0].get_board_id());
-    delay(1000);                      // Wait for monitor to open before completing setup
+    control_timer_setup();              // Setup the control timer
+    can_setup(nodes[0].get_board_id()); // Setup the CAN bus
+    delay(1000);                        // Wait for monitor to open before completing setup
    
 }
 
 void loop(){ 
     
+    unsigned long current_time = millis(); // Get current time in ms
+
     float r = 1000; // Reference for the controller
 
     // Read the LDR data
     nodes[0].update_ldr_data();
-    //Timer for control
-    nodes[0].update_control(r,nodes[0].get_ldr_lux());
-    nodes[0].update_led();
-
-    // Actuate LED Manually
-
-    //Control will go here (use timer)
-
-    // Send CAN message periodically (non-blocking)
-    unsigned long current_time = millis();                
     
-    if( current_time >= time_to_write ) {
+    //Control
+    if (control_timer_flag) {
+        control_timer_flag = false;
+        // Enable/Disable control
+        nodes[0].update_control(r,nodes[0].get_ldr_lux());
+        nodes[0].update_led();
+
+        data_buffer.add_data(nodes[0].get_node_data());
+    }
+        
+    // Actuate LED Manually
+    // nodes[0].update_led();
+
+    // Print last minute buffer
+    // data_buffer.print_lux();
+    // data_buffer.print_filtered_adc();
+    // data_buffer.print_duty_cycle();
+    // data_buffer.print_c_voltage();
+    // data_buffer.print_ldr_resistance(); 
+
+                  
+    if(can_timer_flag) {
         CAN_send(current_time, nodes[0].get_node_id(), nodes[0].get_ldr_lux());   
     }
 

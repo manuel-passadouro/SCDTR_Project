@@ -10,8 +10,6 @@ extern uint8_t node_address; // Short ID
 extern struct can_frame canMsgTx, canMsgRx;
 extern unsigned long counter;
 extern MCP2515::ERROR err;
-extern unsigned long time_to_write;
-extern unsigned long write_delay;
 extern const int BUFSZ;
 extern char printbuf[];
 extern MCP2515 can0;

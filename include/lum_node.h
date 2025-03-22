@@ -37,6 +37,8 @@ typedef struct {                          // Structure for node data
     int duty_cycle;                       // Duty cycle for LED
     FloatUnion c_voltage;                 // Voltage at the Capacitior
     FloatUnion ldr_resistance;            // Calculated LDR resistance
+    FloatUnion reference;                 // Reference value for control
+    unsigned long timestamp;              // Time of last update
 } NodeData;
 
 class Node {
@@ -96,6 +98,10 @@ class Node {
         }
 
         //Getter Functions
+        NodeData get_node_data() const {
+            return node_data;
+        }
+
         float get_ldr_lux() const {
             return node_data.ldr_lux.value;
         }
@@ -117,10 +123,99 @@ class Node {
             node_data.ldr_lux.value = lux;
         }
 
+        void set_reference(float r) {
+            node_data.reference.value = r;
+        }
+
     };
     
-int getFilteredADC(int newSample);
 
-void get_samples(float* V_LED, float* LUX);
+class DataBuffer {
+    public:
+        NodeData *data_buffer;      // Pointer to dynamically allocated array
+        int buffer_size;            // Current size of the buffer
+        int buffer_head;            // Index for the next insertion
+        int buffer_tail;            // Index for the oldest data
+            
+        // Constructor: Initialize the buffer and size
+        DataBuffer(int size) {
+            buffer_size = size;
+            data_buffer = new NodeData[buffer_size];  // Dynamically allocate memory for buffer
+            buffer_head = 0;
+            buffer_tail = 0;
+        }
+    
+        // Destructor
+        ~DataBuffer() {
+            delete[] data_buffer;
+        }
+    
+        // Add new data to the buffer         
+        void add_data(NodeData new_data) {
+            unsigned long current_time = millis();
+                        
+            // Add the new data point to the buffer
+            data_buffer[buffer_head] = new_data;
+            data_buffer[buffer_head].timestamp = current_time;
+            buffer_head = (buffer_head + 1) % buffer_size;      // Circular buffer
+
+            // If the buffer is full, move the start index
+            if (buffer_head == buffer_tail) {
+                buffer_tail = (buffer_tail + 1) % buffer_size; // Overwrite the oldest data
+            }  
+        }       
+          
+        // Print Variables to monitor
+
+        void print_lux() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Lux: ");
+                Serial.println(data_buffer[index].ldr_lux.value);
+            }
+        }
+        
+        void print_filtered_adc() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Filtered ADC: ");
+                Serial.println(data_buffer[index].filtered_adc);
+            }
+        }
+
+        // Function to print duty cycle values from oldest to newest
+        void print_duty_cycle() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Duty Cycle: ");
+                Serial.println(data_buffer[index].duty_cycle);
+            }
+        }
+
+        // Function to print voltage values from oldest to newest
+        void print_c_voltage() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Voltage: ");
+                Serial.println(data_buffer[index].c_voltage.value);
+            }
+        }
+
+        // Function to print ldr resistance values from oldest to newest
+        void print_ldr_resistance() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | LDR Resistance: ");
+                Serial.println(data_buffer[index].ldr_resistance.value);
+            }
+        }
+};
+
+int getFilteredADC(int newSample);
 
 #endif //LUM_NODE_H
