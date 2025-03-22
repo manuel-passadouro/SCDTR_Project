@@ -29,16 +29,20 @@ typedef struct {                          // Structure for node data
     pico_unique_board_id_t board_id;      // Unique board ID
     FloatUnion ldr_m;                     // Slope of the R_LDR/LUX characteristic
     FloatUnion ldr_b;                     // Intercept of the R_LDR/LUX characteristic
-    FloatUnion ldr_lux;                   // Latest measured LUX value
+    FloatUnion ldr_lux;                   // Measured illiminance (LUX)
+    FloatUnion ldr_lux_extern;            // External illuminance (LUX)
     FloatUnion G;                         // Static Gain
     bool desk_state;                      // Desk cupied (1)/ Not ocupied (0)
     int raw_adc;                          // Raw ADC value
     int filtered_adc;                     // Filtered ADC value
-    int duty_cycle;                       // Duty cycle for LED
+    int duty_cycle;                       // Duty cycle for LED (0 to 4095)
     FloatUnion c_voltage;                 // Voltage at the Capacitior
     FloatUnion ldr_resistance;            // Calculated LDR resistance
     FloatUnion reference;                 // Reference value for control
     unsigned long timestamp;              // Time of last update
+    unsigned long time_elapsed;           // Time since boot
+    bool stream_u;                        // Stream duty cycle flag
+    bool stream_y;                        // Stream lux flag
 } NodeData;
 
 class Node {
@@ -105,13 +109,41 @@ class Node {
         float get_ldr_lux() const {
             return node_data.ldr_lux.value;
         }
+
+        float get_ldr_lux_extern() const {
+            return node_data.ldr_lux_extern.value;
+        }
+
+        float get_c_voltage() const {
+            return node_data.c_voltage.value;
+        }
         
         int get_led_duty_cycle() const {
             return node_data.duty_cycle;
         }
 
+        float get_reference() const {
+            return node_data.reference.value;
+        }
+
         int get_node_id() const {
             return node_data.node_id;
+        }
+
+        bool get_occupancy() const {
+            return node_data.desk_state;
+        }
+
+        bool get_stream_u() const {
+            return node_data.stream_u;
+        }
+
+        bool get_stream_y() const {
+            return node_data.stream_y;
+        }
+
+        unsigned long get_time_elapsed() const {
+            return node_data.time_elapsed;
         }
 
         pico_unique_board_id_t get_board_id() const {
@@ -119,12 +151,32 @@ class Node {
         }
         
         //Setter Functions
+        void set_duty_cycle(int duty_cycle) {
+            node_data.duty_cycle = duty_cycle;
+       }
+
         void set_ldr_lux(float lux) {
             node_data.ldr_lux.value = lux;
         }
 
         void set_reference(float r) {
             node_data.reference.value = r;
+        }
+
+        void set_occupancy(bool o) {
+            node_data.desk_state = o;
+        }
+
+        void set_stream_u(bool state) {
+            node_data.stream_u = state;
+        }
+
+        void set_stream_y(bool state) {
+            node_data.stream_y = state;
+        }
+
+        void set_elapsed_time(unsigned long time) {
+            node_data.time_elapsed = time;
         }
 
     };
@@ -192,6 +244,16 @@ class DataBuffer {
                 Serial.print(data_buffer[index].timestamp);
                 Serial.print(" | Duty Cycle: ");
                 Serial.println(data_buffer[index].duty_cycle);
+            }
+        }
+
+        // Function to print illuminance values from oldest to newest
+        void print_ldr_lux() {
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
+                Serial.print("Timestamp: ");
+                Serial.print(data_buffer[index].timestamp);
+                Serial.print(" | Duty Cycle: ");
+                Serial.println(data_buffer[index].ldr_lux.value);
             }
         }
 

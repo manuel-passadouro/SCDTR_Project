@@ -146,16 +146,22 @@ void Node::print_setup_data() const {
 }
 
 void Node::update_ldr_data() {
+    // Read from ADC
     node_data.raw_adc = analogRead(A0);
     node_data.filtered_adc = getFilteredADC(node_data.raw_adc);
     
+    // Compute the voltage at the capacitor
     float V = (node_data.filtered_adc / 4095.0) * VCC;
     node_data.c_voltage.value = V;
     
+    // Compute the resistance of the LDR
     float R_LDR = R * ((VCC - V) / V);
     node_data.ldr_resistance.value = R_LDR;
     
+    // Compute the total and external illuminance
     node_data.ldr_lux.value = pow(10, (log10(R_LDR) - node_data.ldr_b.value) / node_data.ldr_m.value);
+
+    node_data.ldr_lux_extern.value = node_data.ldr_lux.value - (node_data.G.value * node_data.duty_cycle);
 
     // Optional: Print for debugging
     /*

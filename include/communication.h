@@ -17,7 +17,7 @@ extern MCP2515 can0;
 extern std::vector<Node> nodes;
 
 void can_setup(pico_unique_board_id_t board_id);
-void CAN_send(unsigned long current_time, int node_id, float data_to_send);
+void CAN_send(int node_id, float data_to_send);
 void CAN_receive(int node_id);
 
 #endif // COMMUNICATION_H

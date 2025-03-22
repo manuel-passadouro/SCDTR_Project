@@ -3,6 +3,7 @@
 #include "communication.h"
 #include "lum_node.h"
 #include "node_timers.h"
+#include "interface.h"
 
 // Circuit Parameters
 const float VCC = 3.3;              // Rpi Pico Supply voltage
@@ -68,9 +69,29 @@ void setup() {
 
 void loop(){ 
     
-    unsigned long current_time = millis(); // Get current time in ms
+    nodes[0].set_elapsed_time(millis()); // Set the elapsed time since boot (ms)
 
     float r = 1000; // Reference for the controller
+
+    // Check for serial input
+    if(Serial.available()){    
+        handle_serial_commands();
+    }
+
+    // Stream Duty cycle and Illuminance if enabled
+    if(nodes[0].get_stream_u()){
+        Serial.print("Node ");
+        Serial.print(nodes[0].get_node_id());
+        Serial.print(" Duty Cycle: ");
+        Serial.println(nodes[0].get_led_duty_cycle());
+    }
+
+    if(nodes[0].get_stream_y()){
+        Serial.print("Node ");
+        Serial.print(nodes[0].get_node_id());
+        Serial.print(" LDR Lux: ");
+        Serial.println(nodes[0].get_ldr_lux());
+    }
 
     // Read the LDR data
     nodes[0].update_ldr_data();
@@ -82,22 +103,13 @@ void loop(){
         nodes[0].update_control(r,nodes[0].get_ldr_lux());
         nodes[0].update_led();
 
+        // Update last minute buffer
         data_buffer.add_data(nodes[0].get_node_data());
     }
         
-    // Actuate LED Manually
-    // nodes[0].update_led();
-
-    // Print last minute buffer
-    // data_buffer.print_lux();
-    // data_buffer.print_filtered_adc();
-    // data_buffer.print_duty_cycle();
-    // data_buffer.print_c_voltage();
-    // data_buffer.print_ldr_resistance(); 
-
-                  
+    // CAN                
     if(can_timer_flag) {
-        CAN_send(current_time, nodes[0].get_node_id(), nodes[0].get_ldr_lux());   
+        CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());   
     }
 
     // Do this with ISR and flag 
