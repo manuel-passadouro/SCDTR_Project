@@ -89,16 +89,14 @@ class Node {
 
         // Provide access to controller
         void update_control(float r, float y) {
-            float u;    
-            node_data.duty_cycle = (int)controller.compute_control(r, y);
-            controller.housekeep(r, y);            
+            float u = (int)controller.compute_control(r, y);;    
+            node_data.duty_cycle = u;
+            controller.housekeep(r, y, u);            
         }
 
         void update_led() {
             if (node_data.duty_cycle >= 0 && node_data.duty_cycle <= DAC_RANGE_HIGH){
                 analogWrite(LED_PIN, node_data.duty_cycle);
-                //Serial.print("New duty cycle set: ");
-                //Serial.println(node_data.duty_cycle);
             }
             else{
                 Serial.println("Invalid value. Duty Cycle must be between 0 and 4095.");
@@ -288,7 +286,7 @@ class DataBuffer {
                 Serial.print(",");
                 Serial.print(data_buffer[index].ldr_lux.value, 4);
                 Serial.print(",");
-                Serial.print(data_buffer[index].ldr_lux_extern.value, 4);
+                Serial.print(data_buffer[index].reference.value, 4);
                 Serial.println();
             }
         }

@@ -130,13 +130,7 @@ void loop(){
         Serial.print(">LDR_Lux:");
         Serial.print(nodes[0].get_ldr_lux());
         Serial.print("\n");
-
-        /*
-        Serial.print(">Extern:");
-        Serial.print(nodes[0].get_ldr_lux_extern());
-        Serial.print("\n");
-        */
-        
+                
         Serial.print(">Ref:");
         Serial.print(nodes[0].get_reference());
         Serial.print("\n");
