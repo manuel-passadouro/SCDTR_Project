@@ -280,15 +280,16 @@ class DataBuffer {
         }
 
         void print_all() {
-            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size) {
-                Serial.print("Timestamp: ");
+            for (int index = buffer_tail; index != buffer_head; index = (index + 1) % buffer_size){
+                // Print in csv friendly format
                 Serial.print(data_buffer[index].timestamp);
-                Serial.print(" | Duty_Cycle: ");
-                Serial.println(data_buffer[index].duty_cycle);
-                Serial.print(" | LDR_LUX: ");
-                Serial.println(data_buffer[index].ldr_lux.value);
-                Serial.print(" | Ref: ");
-                Serial.println(data_buffer[index].reference.value);
+                Serial.print(",");
+                Serial.print(data_buffer[index].duty_cycle);
+                Serial.print(",");
+                Serial.print(data_buffer[index].ldr_lux.value, 4);
+                Serial.print(",");
+                Serial.print(data_buffer[index].ldr_lux_extern.value, 4);
+                Serial.println();
             }
         }
 };

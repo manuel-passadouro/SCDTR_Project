@@ -6,7 +6,7 @@
 #include "interface.h"
 
 // Circuit Parameters
-const float VCC = 3.3;              // Rpi Pico Supply voltage
+const float VCC = 3.1;              // Rpi Pico Supply voltage
 const int R = 10000;                // Voltage Divider Resistor (10kΩ)
 
 // LED
@@ -15,7 +15,7 @@ const int DAC_RANGE_LOW = 0;
 const int DAC_RANGE_HIGH = 4096;
 
 //ADC Filter
-const int NUM_SAMPLES = 50;         // Number of samples for averaging
+const int NUM_SAMPLES = 50;          // Number of samples for ADC Filter
 int adc_samples[NUM_SAMPLES] = {0};  // Array to store ADC readings
 int sample_index = 0;                // Index for storing new samples
 long sum = 0;                        // Sum of samples for averaging
@@ -43,7 +43,7 @@ MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
 std::vector<Node> nodes;
 
 // Last miunute data buffer
-DataBuffer data_buffer(600); //New addition every 10 ms
+DataBuffer data_buffer(3000);           //At 100Hz, 6000 samples = 1 minute
 
 void setup() {
     // Serial setup
@@ -78,6 +78,7 @@ void loop(){
     // Check for serial input
     if(Serial.available()){    
         handle_serial_commands();
+        //Serial.println("HELLO");
     }
 
     // Stream Duty cycle and Illuminance if enabled
@@ -130,6 +131,12 @@ void loop(){
         Serial.print(nodes[0].get_ldr_lux());
         Serial.print("\n");
 
+        /*
+        Serial.print(">Extern:");
+        Serial.print(nodes[0].get_ldr_lux_extern());
+        Serial.print("\n");
+        */
+        
         Serial.print(">Ref:");
         Serial.print(nodes[0].get_reference());
         Serial.print("\n");

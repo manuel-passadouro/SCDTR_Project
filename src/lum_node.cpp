@@ -67,13 +67,13 @@ void Node::calibrate_gain(int numSteps) {
         node_data.node_id = 1;
         node_data.ldr_m.value = -0.95f;
         node_data.ldr_b.value = 6.2f;
-        node_data.G.value = 8.0f; // Default G if not calibration is run
+        node_data.G.value = 8.0f; // Default G if calibration is not run
     } 
     else if (strcmp(chipID, "E660C0D1C71DA034") == 0) {  
         node_data.node_id = 2;
         node_data.ldr_m.value = -0.93f;
         node_data.ldr_b.value = 6.15f;
-        node_data.G.value = 6.5f; // Default G if not calibration is run
+        node_data.G.value = 6.2f; // Default G if calibration is not run
     } 
     else {
         Serial.println("Unknown board ID. Using default calibration values.");
@@ -166,7 +166,8 @@ void Node::update_ldr_data() {
     // Compute the total and external illuminance
     node_data.ldr_lux.value = pow(10, (log10(R_LDR) - node_data.ldr_b.value) / node_data.ldr_m.value);
 
-    node_data.ldr_lux_extern.value = node_data.ldr_lux.value - (node_data.G.value * (float)(node_data.duty_cycle/ 4096.0));
+    node_data.ldr_lux_extern.value = node_data.ldr_lux.value - 
+        (node_data.G.value * (float)((node_data.duty_cycle/ 4096.0)*VCC));
 
     // Optional: Print for debugging
     /*
@@ -192,10 +193,10 @@ void Node::set_controller_params() {
             break;
 
         case 2: // For node 2
-            controller.set_K(1.0f);
+            controller.set_K(10.0f);
             controller.set_h(0.01f);
             controller.set_b(1.0f);
-            controller.set_Ti(0.03f);
+            controller.set_Ti(0.1f);
             break;
 
         default:

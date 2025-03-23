@@ -44,7 +44,7 @@ void handle_serial_commands() {
 
         Serial.println("Error: Node ID not found.");
     }
-
+    
     // Get Duty Cycle
     else if (command.startsWith("g u ")) {
         int node_id = command.substring(4).toInt(); 
@@ -312,7 +312,7 @@ void handle_serial_commands() {
         }
         Serial.println("Error: Node ID not found.");
     }
-
+    
     else if (command.startsWith("g b ")) {
         int node_id = command.substring(4).toInt();
         
@@ -348,7 +348,7 @@ void handle_serial_commands() {
         }
         Serial.println("Error: Node ID not found.");
     }
-
+    
     else{
         Serial.println("Unknown or invalid command.");
     }
