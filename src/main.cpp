@@ -6,13 +6,14 @@
 #include "interface.h"
 
 // Circuit Parameters
-const float VCC = 3.1;              // Rpi Pico Supply voltage
+const float VCC = 3.1;              // Rpi Pico Supply voltage (Approx)
 const int R = 10000;                // Voltage Divider Resistor (10kΩ)
 
 // LED
 const int LED_PIN = 15;
 const int DAC_RANGE_LOW = 0;
 const int DAC_RANGE_HIGH = 4096;
+const float P_MAX = 0.01 * VCC;      // Maximum power (10mA)
 
 //ADC Filter
 const int NUM_SAMPLES = 50;          // Number of samples for ADC Filter
@@ -34,7 +35,7 @@ unsigned long counter{0};
 MCP2515::ERROR err;
 int unsigned long time_to_write;
 //unsigned long write_delay{1000};
-const int CAN_PERIOD = 100;         // CAN TX period in ms (10Hz)
+const int CAN_PERIOD = 1000;         // CAN TX period in ms (10Hz)
 const int BUFSZ = 100;
 char printbuf[BUFSZ];
 MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
@@ -72,8 +73,6 @@ void setup() {
 }
 
 void loop(){ 
-    
-    //Serial.print("MAIN");
         
     // Check for serial input
     if(Serial.available()){    
@@ -105,8 +104,10 @@ void loop(){
         // Enable/Disable control
         nodes[0].set_timestamp(millis());
         nodes[0].update_ldr_data();
+        /*
         nodes[0].update_control(nodes[0].get_reference(),nodes[0].get_ldr_lux());
         nodes[0].update_led();
+        */
 
         // Update last minute buffer
         data_buffer.add_data(nodes[0].get_node_data());
@@ -115,9 +116,11 @@ void loop(){
     // CAN                
     if(can_timer_flag) {
         can_timer_flag = false;
-        //CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());
-        //Serial.print("Node ");
-        //Serial.print(nodes[0].get_node_id());
+        CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());
+        
+        /*
+        Serial.print("Node ");
+        Serial.print(nodes[0].get_node_id());
 
         Serial.print(">Time:");
         Serial.print(millis());
@@ -134,6 +137,7 @@ void loop(){
         Serial.print(">Ref:");
         Serial.print(nodes[0].get_reference());
         Serial.print("\n");
+        */
     }
 
     // Do this with ISR and flag 

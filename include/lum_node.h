@@ -4,8 +4,10 @@
 #include "mcp2515.h"
 #include "control.h"
 
+
 // Constants (Defined in main)
 extern const int LED_PIN;
+extern const float P_MAX;
 extern const float VCC;
 extern const int R;
 extern const int DAC_RANGE_HIGH;
@@ -72,7 +74,7 @@ class Node {
 
         }
     
-        //Menber Functions
+        //Member Functions
         void get_pico_id() {
             pico_get_unique_board_id(&node_data.board_id);
         }
@@ -89,7 +91,8 @@ class Node {
 
         // Provide access to controller
         void update_control(float r, float y) {
-            float u = (int)controller.compute_control(r, y);;    
+            float G = node_data.G.value;
+            float u = (int)controller.compute_control(r, y, G);    
             node_data.duty_cycle = u;
             controller.housekeep(r, y, u);            
         }
@@ -118,6 +121,10 @@ class Node {
 
         float get_c_voltage() const {
             return node_data.c_voltage.value;
+        }
+
+        float get_G() const {
+            return node_data.G.value;
         }
         
         int get_led_duty_cycle() const {
@@ -151,6 +158,8 @@ class Node {
         pico_unique_board_id_t get_board_id() const {
             return node_data.board_id;
         }
+
+        
         
         //Setter Functions
         void set_duty_cycle(int duty_cycle) {
@@ -289,6 +298,75 @@ class DataBuffer {
                 Serial.print(data_buffer[index].reference.value, 4);
                 Serial.println();
             }
+        }
+
+        void compute_energy() {
+            float energy_sum = 0.0;
+            if ((buffer_head - buffer_tail + buffer_size) % buffer_size < 2) {
+                Serial.println("Not enough data to compute energy.");
+                return;
+            }
+        
+            for (int i = (buffer_tail + 1) % buffer_size; i != buffer_head; i = (i + 1) % buffer_size) {
+                int prev_index = (i - 1 + buffer_size) % buffer_size;
+                float delta_time = (data_buffer[i].timestamp - data_buffer[prev_index].timestamp) / 1000.0; // Convert ms to s
+                float scaled_duty_cycle = data_buffer[prev_index].duty_cycle / 4096.0; // Scale from 0-1
+                energy_sum += scaled_duty_cycle * delta_time;
+            }
+        
+            float total_energy = P_MAX * energy_sum;
+        
+            Serial.print("Total Energy (Joules): ");
+            Serial.println(total_energy);
+        }
+
+        void compute_visibility_error() {
+            float visibility_sum = 0.0;
+            int sample_count = 0;
+        
+            for (int i = buffer_tail; i != buffer_head; i = (i + 1) % buffer_size) {
+                float error = std::max(0.0f, data_buffer[i].reference.value - data_buffer[i].ldr_lux.value);
+                visibility_sum += error;
+                sample_count++;
+            }
+        
+            if (sample_count == 0) {
+                Serial.println("No data available for visibility error calculation.");
+                return;
+            }
+        
+            float visibility_error = visibility_sum / sample_count;
+            Serial.print("Average Visibility Error (LUX): ");
+            Serial.println(visibility_error);
+        }
+
+        void compute_flicker() {
+            float flicker_sum = 0.0;
+            int sample_count = 0;
+        
+            for (int i = (buffer_tail + 2) % buffer_size; i != buffer_head; i = (i + 1) % buffer_size) {
+                int prev1 = (i - 1 + buffer_size) % buffer_size;
+                int prev2 = (i - 2 + buffer_size) % buffer_size;
+        
+                float d_k = data_buffer[i].duty_cycle;
+                float d_k_1 = data_buffer[prev1].duty_cycle;
+                float d_k_2 = data_buffer[prev2].duty_cycle;
+        
+                if ((d_k - d_k_1) * (d_k_1 - d_k_2) < 0) {
+                    float flicker_value = std::abs(d_k - d_k_1) + std::abs(d_k_1 - d_k_2);
+                    flicker_sum += flicker_value;
+                    sample_count++;
+                }
+            }
+        
+            if (sample_count == 0) {
+                Serial.println("No flicker detected.");
+                return;
+            }
+        
+            float average_flicker = flicker_sum / sample_count;
+            Serial.print("Average Flicker (1/s): ");
+            Serial.println(average_flicker);
         }
 };
 

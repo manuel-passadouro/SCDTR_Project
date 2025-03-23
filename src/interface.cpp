@@ -348,6 +348,57 @@ void handle_serial_commands() {
         }
         Serial.println("Error: Node ID not found.");
     }
+
+    else if (command.startsWith("g E ")) {
+        int node_id = command.substring(4).toInt();
+        
+        // Search for the node in the buffer
+        for (auto &node : nodes) {
+            if (node.get_node_id() == node_id) {
+                Serial.print("Node ");
+                Serial.print(node_id);
+                
+                data_buffer.compute_energy();
+                
+                return;
+            }
+        }
+        Serial.println("Error: Node ID not found.");
+    }
+
+    else if (command.startsWith("g V ")) {
+        int node_id = command.substring(4).toInt();
+        
+        // Search for the node in the buffer
+        for (auto &node : nodes) {
+            if (node.get_node_id() == node_id) {
+                Serial.print("Node ");
+                Serial.print(node_id);
+                
+                data_buffer.compute_visibility_error();
+                
+                return;
+            }
+        }
+        Serial.println("Error: Node ID not found.");
+    }
+
+    else if (command.startsWith("g F ")) {
+        int node_id = command.substring(4).toInt();
+        
+        // Search for the node in the buffer
+        for (auto &node : nodes) {
+            if (node.get_node_id() == node_id) {
+                Serial.print("Node ");
+                Serial.print(node_id);
+                
+                data_buffer.compute_flicker();
+                
+                return;
+            }
+        }
+        Serial.println("Error: Node ID not found.");
+    }
     
     else{
         Serial.println("Unknown or invalid command.");

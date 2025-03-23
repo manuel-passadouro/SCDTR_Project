@@ -190,13 +190,15 @@ void Node::set_controller_params() {
             controller.set_h(0.01f);
             controller.set_b(1.0f);
             controller.set_Ti(0.05f);
+            controller.set_uff(0.0f);
             break;
 
         case 2: // For node 2
-            controller.set_K(5.0f);
+            controller.set_K(10.0f);
             controller.set_h(0.01f);
-            controller.set_b(1.0f);
-            controller.set_Ti(0.05f);
+            controller.set_b(0.3f);
+            controller.set_Ti(0.08f);
+            controller.set_uff(0.001f);
             break;
 
         default:
