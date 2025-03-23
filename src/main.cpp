@@ -26,7 +26,7 @@ const int CAL_SAMPLES = 500;         // Number of duty cycle steps for calibrati
 const int CAL_STEPS = 10;            // Number of duty cycle steps for calibration
 
 // Control
-const int CONTROL_PERIOD = 10;       // Control period in ms (100Hz)
+const int CONTROL_PERIOD = 1000;       // Control period in ms (100Hz)
 
 // CAN
 uint8_t node_address;                // short id
@@ -35,7 +35,7 @@ unsigned long counter{0};
 MCP2515::ERROR err;
 int unsigned long time_to_write;
 //unsigned long write_delay{1000};
-const int CAN_PERIOD = 1000;         // CAN TX period in ms (10Hz)
+const int CAN_PERIOD = 2000;         // CAN TX period in ms (10Hz)
 const int BUFSZ = 100;
 char printbuf[BUFSZ];
 MCP2515 can0 {spi0, 17, 19, 16, 18, 10000000};
@@ -72,81 +72,86 @@ void setup() {
     
 }
 
-void loop(){ 
-        
+void loop() {
+    unsigned long start_time, elapsed_time;
+
     // Check for serial input
-    if(Serial.available()){    
+    if (Serial.available()) {
+        start_time = micros();  // Start time for handling serial commands
         handle_serial_commands();
-        //Serial.println("HELLO");
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("Serial command processing time: ");
+        Serial.println(elapsed_time);
     }
 
     // Stream Duty cycle and Illuminance if enabled
-    if(nodes[0].get_stream_u()){
+    if (nodes[0].get_stream_u()) {
+        start_time = micros();  // Start time for streaming Duty cycle
         Serial.print("Node ");
         Serial.print(nodes[0].get_node_id());
         Serial.print(" Duty Cycle: ");
         Serial.println(nodes[0].get_led_duty_cycle());
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("Duty cycle streaming time: ");
+        Serial.println(elapsed_time);
     }
 
-    if(nodes[0].get_stream_y()){
+    if (nodes[0].get_stream_y()) {
+        start_time = micros();  // Start time for streaming LDR Lux
         Serial.print("Node ");
         Serial.print(nodes[0].get_node_id());
         Serial.print(" LDR Lux: ");
         Serial.println(nodes[0].get_ldr_lux());
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("LDR Lux streaming time: ");
+        Serial.println(elapsed_time);
     }
 
-    // Read the LDR data
-    //nodes[0].update_ldr_data();
-    
-    //Control
+    // Control
     if (control_timer_flag) {
         control_timer_flag = false;
-        // Enable/Disable control
-        nodes[0].set_timestamp(millis());
+        
+        // Update LDR data independently
+        start_time = micros();  // Start time for updating LDR data
+        nodes[0].set_timestamp(micros());
         nodes[0].update_ldr_data();
-        /*
-        nodes[0].update_control(nodes[0].get_reference(),nodes[0].get_ldr_lux());
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("LDR data update time: ");
+        Serial.println(elapsed_time);
+
+        // Now update control based on the latest LDR data
+        start_time = micros();  // Start time for updating control
+        nodes[0].update_control(nodes[0].get_reference(), nodes[0].get_ldr_lux());
         nodes[0].update_led();
-        */
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("Control update time: ");
+        Serial.println(elapsed_time);
 
         // Update last minute buffer
         data_buffer.add_data(nodes[0].get_node_data());
     }
-        
-    // CAN                
-    if(can_timer_flag) {
+
+    // CAN
+    if (can_timer_flag) {
         can_timer_flag = false;
+        start_time = micros();  // Start time for sending CAN message
         CAN_send(nodes[0].get_node_id(), nodes[0].get_ldr_lux());
-        
-        /*
-        Serial.print("Node ");
-        Serial.print(nodes[0].get_node_id());
-
-        Serial.print(">Time:");
-        Serial.print(millis());
-        Serial.print("\n");
-        
-        Serial.print(">Duty_Cycle:");
-        Serial.print(nodes[0].get_led_duty_cycle());
-        Serial.print("\n");
-
-        Serial.print(">LDR_Lux:");
-        Serial.print(nodes[0].get_ldr_lux());
-        Serial.print("\n");
-                
-        Serial.print(">Ref:");
-        Serial.print(nodes[0].get_reference());
-        Serial.print("\n");
-        */
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("CAN send time: ");
+        Serial.println(elapsed_time);
     }
 
-    // Do this with ISR and flag 
-    while ( (err = can0.readMessage( &canMsgRx )) == MCP2515::ERROR_OK ) {
+    // CAN receive
+    
+    while ((err = can0.readMessage(&canMsgRx)) == MCP2515::ERROR_OK) {
+        start_time = micros();  // Start time for receiving CAN messages
         CAN_receive(nodes[0].get_node_id());
+        elapsed_time = micros() - start_time;  // Elapsed time
+        Serial.print("CAN receive time: ");
+        Serial.println(elapsed_time);
     }
-
     if (err == MCP2515::ERROR_FAIL) {
         Serial.println("CAN Error");
     }
-
+    
 }

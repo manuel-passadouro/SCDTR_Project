@@ -27,8 +27,9 @@ void CAN_send(int node_id, float data_to_send) {
 
     err = can0.sendMessage(&canMsgTx);
 
-    snprintf(printbuf, BUFSZ, "#%d TXmessage: %ld lux: %f", node_id, counter++, data_to_send);
-    Serial.println(printbuf);
+    //Debug
+    //snprintf(printbuf, BUFSZ, "#%d TXmessage: %ld lux: %f", node_id, counter++, data_to_send);
+    //Serial.println(printbuf);
     
 }
 
@@ -45,7 +46,8 @@ void CAN_receive(int node_id) {
         ldr_lux_rx.data[i] = canMsgRx.data[i];  // Copy the bytes into the union
     }
 
-    snprintf(printbuf, BUFSZ, "#%d RXmessage lux: %f\n", node_id, rx_msg, ldr_lux_rx.value);
-    Serial.println(printbuf);
+    // Debug
+    //snprintf(printbuf, BUFSZ, "#%d RXmessage lux: %f\n", node_id, rx_msg, ldr_lux_rx.value);
+    //Serial.println(printbuf);
     
 }
